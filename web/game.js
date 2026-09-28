@@ -240,8 +240,6 @@ function drawMap(){
  const worldToMap=(x,z)=>({x:w/2+x*scale,y:h/2+z*scale});
  // mapa esquemático da malha do Centro de Balneário Camboriú
  mapCtx.fillStyle='#6c955e';mapCtx.fillRect(0,0,w,h);
- const scale=.48;
- const worldToMap=(x,z)=>({x:w/2+x*scale,y:h/2+z*scale});
  mapCtx.fillStyle='#43a7d4';mapCtx.fillRect(w*.84,0,w*.16,h);
  mapCtx.fillStyle='#e6d2a0';mapCtx.fillRect(w*.80,0,w*.04,h);
  mapCtx.fillStyle='#3b4147';
