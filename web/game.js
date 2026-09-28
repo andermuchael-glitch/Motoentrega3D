@@ -133,14 +133,14 @@ for(const z of [-1.02,1.02]){
 }
 cylinderBetween(new THREE.Vector3(0,.68,-.95),new THREE.Vector3(0,1.2,.35),.11,dark);
 cylinderBetween(new THREE.Vector3(0,.72,.85),new THREE.Vector3(0,1.2,.35),.12,dark);
-mesh(new THREE.CapsuleGeometry(.48,.8,6,12),red,0,1.18,.05);
-const tank=mesh(new THREE.SphereGeometry(.48,12,8),red,0,1.35,-.05);tank.scale.set(1,.65,1.35);
-const seat=mesh(new THREE.BoxGeometry(.52,.16,.85),dark,0,1.52,.62);seat.rotation.x=-.08;
+mesh(new THREE.CapsuleGeometry(.34,.82,6,12),red,0,1.18,.05);
+const tank=mesh(new THREE.SphereGeometry(.48,12,8),red,0,1.35,-.05);tank.scale.set(.78,.62,1.35);
+const seat=mesh(new THREE.BoxGeometry(.40,.16,.78),dark,0,1.52,.62);seat.rotation.x=-.08;
 const front=mesh(new THREE.CapsuleGeometry(.27,.52,5,10),red,0,1.15,-.88);front.rotation.x=Math.PI/2;front.scale.set(1,.7,1);
 const handle=mesh(new THREE.CylinderGeometry(.045,.045,1.05,10),chrome,0,1.67,-.83);handle.rotation.z=Math.PI/2;
 const head=mesh(new THREE.SphereGeometry(.16,12,8),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffe39b,emissiveIntensity:1.7}),0,1.3,-1.17);
 const boxMat=mat(0xb97832,.9);
-const deliveryBox=mesh(new THREE.BoxGeometry(.72,.52,.62),boxMat,0,1.68,.88);
+const deliveryBox=mesh(new THREE.BoxGeometry(.56,.40,.52),boxMat,0,1.62,.88);
 deliveryBox.visible=false;
 bike.position.set(0,0,0);scene.add(bike);
 
@@ -164,16 +164,44 @@ function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
 
 const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');
 function drawMap(){
- const w=mapCanvas.width,h=mapCanvas.height,scale=.68,ox=w/2-bike.position.x*scale,oz=h/2-bike.position.z*scale;
- mapCtx.clearRect(0,0,w,h);mapCtx.fillStyle='#182127';mapCtx.fillRect(0,0,w,h);
- mapCtx.save();mapCtx.translate(ox,oz);
- mapCtx.fillStyle='#3b4147';
- for(let p=-100;p<=100;p+=40){mapCtx.fillRect(-100*scale,p*scale,200*scale,12*scale);mapCtx.fillRect(p*scale,-100*scale,12*scale,200*scale)}
- mapCtx.fillStyle='#78985f';
- for(let x=-80;x<=80;x+=40)for(let z=-80;z<=80;z+=40)mapCtx.fillRect(x*scale,z*scale,28*scale,28*scale);
+ const w=mapCanvas.width,h=mapCanvas.height;
+ mapCtx.clearRect(0,0,w,h);
+ mapCtx.fillStyle='#182127';mapCtx.fillRect(0,0,w,h);
+ const scale=.48;
+ const worldToMap=(x,z)=>({x:w/2+x*scale,y:h/2+z*scale});
+ // grass / blocks
+ mapCtx.fillStyle='#648c57';
+ for(let x=-100;x<=60;x+=40) for(let z=-100;z<=60;z+=40){
+   const p=worldToMap(x,z); mapCtx.fillRect(p.x+5,p.y+5,28*scale,28*scale);
+ }
+ // roads
+ mapCtx.fillStyle='#424950';
+ for(let p=-100;p<=100;p+=40){
+   let a=worldToMap(-120,p),d=worldToMap(120,p);
+   mapCtx.fillRect(a.x,a.y,d.x-a.x,12*scale);
+   a=worldToMap(p,-120);d=worldToMap(p,120);
+   mapCtx.fillRect(a.x,a.y,12*scale,d.y-a.y);
+ }
+ // road center lines
+ mapCtx.strokeStyle='#f2d76c';mapCtx.lineWidth=1;
+ mapCtx.setLineDash([4,4]);
+ for(let p=-100;p<=100;p+=40){
+   let a=worldToMap(-120,p),d=worldToMap(120,p);
+   mapCtx.beginPath();mapCtx.moveTo(a.x,a.y+3);mapCtx.lineTo(d.x,d.y+3);mapCtx.stroke();
+   a=worldToMap(p,-120);d=worldToMap(p,120);
+   mapCtx.beginPath();mapCtx.moveTo(a.x+3,a.y);mapCtx.lineTo(d.x+3,d.y);mapCtx.stroke();
+ }
+ mapCtx.setLineDash([]);
  const target=state==='pickup'?pickup:customer;
- if(target&&target.visible){mapCtx.fillStyle=state==='pickup'?'#ff9b00':'#42e5ff';mapCtx.beginPath();mapCtx.arc(target.position.x*scale,target.position.z*scale,5,0,Math.PI*2);mapCtx.fill()}
- mapCtx.fillStyle='#ff3038';mapCtx.beginPath();mapCtx.arc(bike.position.x*scale,bike.position.z*scale,5,0,Math.PI*2);mapCtx.fill();
+ if(target&&target.visible){
+   const p=worldToMap(target.position.x,target.position.z);
+   mapCtx.fillStyle=state==='pickup'?'#ff9b00':'#42e5ff';
+   mapCtx.beginPath();mapCtx.arc(p.x,p.y,5,0,Math.PI*2);mapCtx.fill();
+   mapCtx.strokeStyle='#fff';mapCtx.lineWidth=2;mapCtx.stroke();
+ }
+ const me=worldToMap(bike.position.x,bike.position.z);
+ mapCtx.save();mapCtx.translate(me.x,me.y);mapCtx.rotate(-bike.rotation.y);
+ mapCtx.fillStyle='#ff3038';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(4,6);mapCtx.lineTo(0,3);mapCtx.lineTo(-4,6);mapCtx.closePath();mapCtx.fill();
  mapCtx.restore();
 }
 
