@@ -1,4 +1,4 @@
-const CACHE_NAME = "motoentrega-3d-v3";
+const CACHE_NAME = "motoentrega-3d-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
