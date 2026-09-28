@@ -1,32 +1,59 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
 
 const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x87bce8);
-scene.fog=new THREE.Fog(0x87bce8,80,240);
+scene.background=new THREE.Color(0x7fb9e6);
+scene.fog=new THREE.Fog(0x7fb9e6,95,260);
 
 const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,500);
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.08;
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff,0x59636e,2.2));
-const sun=new THREE.DirectionalLight(0xffffff,2);
-sun.position.set(40,80,20); scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xcce8ff,0x43533d,2.4));
+const sun=new THREE.DirectionalLight(0xfff2d2,3.0);
+sun.position.set(35,90,25);
+sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-100; sun.shadow.camera.right=100;
+sun.shadow.camera.top=100; sun.shadow.camera.bottom=-100;
+scene.add(sun);
 
-function box(name,x,y,z,w,h,d,color){
- const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color}));
- m.name=name;m.position.set(x,y,z);scene.add(m);return m;
+function box(name,x,y,z,w,h,d,color,roughness=.82){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness,metalness:.04}));
+ m.name=name;m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
 }
-const ground=box('ground',0,-.3,0,180,.5,180,0x5d8a4d);
-for(let i=-80;i<=80;i+=20){
- box('road',0,.01,i,180,.08,8,0x30343a);
- box('road',i,.02,0,8,.09,180,0x30343a);
+function addRoadMark(x,y,z,w,d,rot=0){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,.025,d),new THREE.MeshBasicMaterial({color:0xf5d76e}));
+ m.position.set(x,y,z);m.rotation.y=rot;scene.add(m);
 }
-for(let x=-70;x<=70;x+=20) for(let z=-70;z<=70;z+=20){
+function addWindow(x,y,z,w=.9,h=1.1,rot=0){
+ const m=new THREE.Mesh(new THREE.BoxGeometry(w,.08,h),new THREE.MeshStandardMaterial({color:0x9ddcff,metalness:.15,roughness:.25,emissive:0x17384d,emissiveIntensity:.18}));
+ m.position.set(x,y,z);m.rotation.y=rot;scene.add(m);
+}
+const ground=box('ground',0,-.3,0,220,.5,220,0x5b8b4d);
+for(let i=-100;i<=100;i+=20){
+ box('road',0,.01,i,220,.08,9,0x2c3138);
+ box('road',i,.02,0,9,.09,220,0x2c3138);
+}
+for(let i=-100;i<=100;i+=10){
+ addRoadMark(0,.07,i, .18,4,0);
+ addRoadMark(i,.08,0, 4,.18,0);
+}
+for(let x=-90;x<=90;x+=20) for(let z=-90;z<=90;z+=20){
  if(Math.abs(x)<15||Math.abs(z)<15) continue;
- const h=5+Math.random()*12;
- box('building',x,h/2,z,12,h,12,0x9aa3ad);
+ const h=7+((Math.abs(x*13+z*7)%100)/100)*14;
+ const w=11+((Math.abs(x*5-z*3)%5));
+ const color=[0x9aa7b3,0xb6a58f,0x7d8d9d,0xc0b8a9][Math.abs(x+z)%4];
+ box('building',x,h/2,z,w,h,w,color);
+ addWindow(x-w/2-.05,Math.min(h-2,5),z,.9,1.2,Math.PI/2);
+ addWindow(x+w/2+.05,Math.min(h-2,7),z,.9,1.2,Math.PI/2);
+ addWindow(x,Math.min(h-2,4),z-w/2-.05,1,1.2,0);
 }
 
 function marker(name,pos,color){
@@ -42,14 +69,31 @@ const customer=marker('Cliente',new THREE.Vector3(-45,.1,-35),0x42e5ff);
 pickup.visible=false;customer.visible=false;
 
 const bike=new THREE.Group();
-const body=new THREE.Mesh(new THREE.BoxGeometry(1.25,.65,2.7),new THREE.MeshStandardMaterial({color:0xe53935}));
-body.position.y=1.05;bike.add(body);
-const seat=box('seat',0,1.5,.15,.75,.18,1.1,0x202124);bike.add(seat);
-for(const z of [-1.05,1.05]){
- const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.22,20),new THREE.MeshStandardMaterial({color:0x151515}));
- wheel.rotation.z=Math.PI/2;wheel.position.set(0,.48,z);bike.add(wheel);
+const redMat=new THREE.MeshStandardMaterial({color:0xe53935,roughness:.42,metalness:.12});
+const darkMat=new THREE.MeshStandardMaterial({color:0x17191d,roughness:.35,metalness:.3});
+const chromeMat=new THREE.MeshStandardMaterial({color:0xb8c2cc,roughness:.22,metalness:.75});
+const body=new THREE.Mesh(new THREE.BoxGeometry(1.18,.58,2.35),redMat);
+body.position.y=1.02;body.castShadow=true;bike.add(body);
+const frontFairing=new THREE.Mesh(new THREE.BoxGeometry(.9,.42,.72),redMat);
+frontFairing.position.set(0,1.28,-1.0);frontFairing.castShadow=true;bike.add(frontFairing);
+const tank=new THREE.Mesh(new THREE.BoxGeometry(.9,.38,.82),redMat);
+tank.position.set(0,1.42,.15);tank.rotation.x=-.08;tank.castShadow=true;bike.add(tank);
+const seat=new THREE.Mesh(new THREE.BoxGeometry(.68,.16,.95),darkMat);
+seat.position.set(0,1.55,.65);seat.castShadow=true;bike.add(seat);
+const handle=new THREE.Mesh(new THREE.BoxGeometry(1.15,.1,.1),chromeMat);
+handle.position.set(0,1.7,-.82);handle.castShadow=true;bike.add(handle);
+const headlight=new THREE.Mesh(new THREE.SphereGeometry(.18,16,12),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffeeaa,emissiveIntensity:1.5}));
+headlight.position.set(0,1.35,-1.37);bike.add(headlight);
+for(const z of [-1.0,1.0]){
+ const wheel=new THREE.Mesh(new THREE.CylinderGeometry(.43,.43,.24,24),darkMat);
+ wheel.rotation.z=Math.PI/2;wheel.position.set(0,.48,z);wheel.castShadow=true;bike.add(wheel);
+ const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.27,16),chromeMat);
+ hub.rotation.z=Math.PI/2;hub.position.set(0,.48,z);bike.add(hub);
 }
+const deliveryBox=new THREE.Mesh(new THREE.BoxGeometry(.78,.62,.72),new THREE.MeshStandardMaterial({color:0xb87932,roughness:.9}));
+deliveryBox.position.set(0,1.7,1.05);deliveryBox.castShadow=true;bike.add(deliveryBox);
 bike.position.set(0,0,0);scene.add(bike);
+bike.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
 
 let money=0,state='idle',remaining=180,orderReward=18;
 const keys={left:false,right:false,up:false,down:false};
@@ -123,4 +167,4 @@ function update(dt){
 let last=performance.now();
 function animate(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);renderer.render(scene,camera);requestAnimationFrame(animate)}
 requestAnimationFrame(animate);
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));});
