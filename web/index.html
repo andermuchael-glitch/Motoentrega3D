@@ -11,9 +11,11 @@
 <link rel="icon" href="./icons/icon-192.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Motoentrega 3D — Protótipo</title>
-<link rel="stylesheet" href="./style.css?v=7">
+<link rel="stylesheet" href="./style.css?v=10">
 </head>
 <body>
+<div id="boot">Carregando mapa 3D…</div>
+<div id="runtimeError" hidden></div>
 <div id="hud">
   <div class="top">
     <div class="brand">🏍️ MOTOENTREGA 3D</div>
@@ -35,11 +37,23 @@
   <button data-key="down">▼</button>
   <button data-key="right">▶</button>
 </div>
-<script type="module" src="./game.js?v=7"></script>
+<script type="module" src="./game.js?v=10"></script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(console.error));
 }
+</script>
+<script>
+window.addEventListener('error',e=>{
+  const b=document.getElementById('runtimeError');
+  if(b && !b.hidden){return;}
+  if(b){b.hidden=false;b.innerHTML='<b>Erro ao carregar o jogo</b><br><small>'+String(e.message||'Erro desconhecido').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</small><br><button onclick="location.reload()">Recarregar</button>';}
+});
+window.addEventListener('unhandledrejection',e=>{
+  const b=document.getElementById('runtimeError');
+  if(b){b.hidden=false;b.innerHTML='<b>Erro ao carregar o jogo</b><br><small>'+String(e.reason?.message||e.reason||'Falha no módulo 3D').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</small><br><button onclick="location.reload()">Recarregar</button>';}
+});
+window.addEventListener('load',()=>setTimeout(()=>{const boot=document.getElementById('boot');if(boot)boot.remove()},1200));
 </script>
 </body>
 </html>
