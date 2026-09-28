@@ -146,7 +146,9 @@ for(let ix=0;ix<verticalRoads.length-1;ix++){
 for(let z=-90;z<=90;z+=30){
  const h=24+rnd()*22;
  addBuilding(68,z,10,13,h,buildingColors[Math.floor(rnd()*buildingColors.length)],2);
-}\n\n// calçadão da praia
+}
+
+// calçadão da praia
 box(84,.2,0,5,0.35,250,0xd5d0c2);
 for(let z=-115;z<115;z+=12){
  cyl(.08,3,83.2,1.7,z,0x33383d);
