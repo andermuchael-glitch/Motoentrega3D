@@ -116,28 +116,59 @@ function addBuilding(x,z,w,d,h,color,index){
 let seed=19;
 function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
 
-// quarteirões entre os eixos, evitando estradas
-const xs=[-105,-75,-63,-51,-39,-27,-15,-5,5,15,27,39,51,63,75,87,105];
-const zs=[-112,-91,-73,-55,-37,-19,-1,9,21,39,57,75,93,112];
-for(let ix=0;ix<xs.length-1;ix++){
- for(let iz=0;iz<zs.length-1;iz++){
-   const x=(xs[ix]+xs[ix+1])/2, z=(zs[iz]+zs[iz+1])/2;
-   const w=Math.max(5,xs[ix+1]-xs[ix]-3), d=Math.max(5,zs[iz+1]-zs[iz]-3);
-   if(w<6||d<6) continue;
-   // praia fica aberta
-   if(x>83) continue;
+// QUARTEIRÕES — prédios ficam entre as ruas, nunca sobre a pista
+const buildingColors=[0xc9b7a7,0x9aa9b4,0xd8c9ae,0x8799a8,0xb79d99,0x8eaa8d,0xbfc3c8];
+let seed=19;
+function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
+
+function addBuilding(x,z,w,d,h,color,index){
+ const b=box(x,h/2,z,w,h,d,color);
+ box(x,h+.15,z,w+.15,d+.15,0x50545a);
+ const glass=mat(index%3===0?0x73c8e8:0x5c9fba,.25,.15);
+ for(let yy=2.2;yy<h-1;yy+=2.6){
+   for(let xx=-w/2+1.3;xx<w/2-1;xx+=2.7){
+     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z-d/2-.04);
+     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z+d/2+.04);
+   }
+ }
+ for(let yy=2.2;yy<h-1;yy+=2.6){
+   for(let zz=-d/2+1.3;zz<d/2-1;zz+=2.7)
+     mesh(new THREE.BoxGeometry(.055,.72,1.25),glass,x-w/2-.04,yy,z+zz);
+ }
+ // porta e marquise simples
+ mesh(new THREE.BoxGeometry(1.4,2.1,.08),mat(0x4b3024),x,1.05,z-d/2-.07);
+ return b;
+}
+
+// Todas as ruas verticais/horizontais formam os limites dos quarteirões.
+const verticalRoads=[-72,-60,-48,-42,-36,-24,-12,18,24,36,48,60,72,76,84];
+const horizontalRoads=[-100,-82,-64,-46,-28,-10,0,18,36,54,72,90,108];
+for(let ix=0;ix<verticalRoads.length-1;ix++){
+ for(let iz=0;iz<horizontalRoads.length-1;iz++){
+   const left=verticalRoads[ix],right=verticalRoads[ix+1];
+   const top=horizontalRoads[iz],bottom=horizontalRoads[iz+1];
+   const x=(left+right)/2,z=(top+bottom)/2;
+   const w=right-left-3.5,d=bottom-top-3.5;
+   if(w<5||d<5||x>82) continue;
+
    const central=x>0 && x<80 && Math.abs(z)<85;
-   const count=central?(rnd()>.35?2:1):(rnd()>.68?2:1);
+   const count=central?(rnd()>.28?2:1):(rnd()>.62?2:1);
    for(let n=0;n<count;n++){
-     const bw=Math.min(w*.72,9+rnd()*9), bd=Math.min(d*.72,9+rnd()*8);
-     const bx=x+(n?rnd()*(w-bw)*.35:0), bz=z+(n?rnd()*(d-bd)*.35:0);
-     const h=central?12+rnd()*24:7+rnd()*16;
+     const bw=Math.min(w*.72,7+rnd()*7);
+     const bd=Math.min(d*.72,7+rnd()*7);
+     const bx=x+(n?((rnd()-.5)*Math.max(0,w-bw)*.45):0);
+     const bz=z+(n?((rnd()-.5)*Math.max(0,d-bd)*.45):0);
+     const h=central?14+rnd()*30:8+rnd()*17;
      addBuilding(bx,bz,bw,bd,h,buildingColors[Math.floor(rnd()*buildingColors.length)],Math.floor(rnd()*8));
    }
  }
 }
 
-// calçadão da praia
+// edifícios costeiros altos, afastados do calçadão
+for(let z=-90;z<=90;z+=30){
+ const h=24+rnd()*22;
+ addBuilding(68,z,10,13,h,buildingColors[Math.floor(rnd()*buildingColors.length)],2);
+}\n\n// calçadão da praia
 box(84,.2,0,5,0.35,250,0xd5d0c2);
 for(let z=-115;z<115;z+=12){
  cyl(.08,3,83.2,1.7,z,0x33383d);
@@ -192,24 +223,37 @@ const pickup=marker(new THREE.Vector3(58,.1,-24),0xff9b00);
 const customer=marker(new THREE.Vector3(-28,.1,-50),0x42e5ff);
 pickup.visible=false;customer.visible=false;
 
-// MOTORCYCLE: low-poly silhouette instead of a box
+// MOTOCICLETA — silhueta esportiva com piloto e baú de entrega
 const bike=new THREE.Group();
-const red=mat(0xd9252a,.4,.12), dark=mat(0x17191d,.28,.35), chrome=mat(0xb9c5cf,.2,.8);
-const wheelGeo=new THREE.CylinderGeometry(.48,.48,.24,20);
-for(const z of [-1.02,1.02]){
- const w=new THREE.Mesh(wheelGeo,dark);w.rotation.z=Math.PI/2;w.position.set(0,.5,z);w.castShadow=true;bike.add(w);
- const hub=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.27,14),chrome);hub.rotation.z=Math.PI/2;hub.position.set(0,.5,z);bike.add(hub);
+const red=mat(0xd9252a,.32,.18), redDark=mat(0x8f1116,.4,.15), dark=mat(0x17191d,.28,.35), chrome=mat(0xb9c5cf,.2,.8);
+const wheelGeo=new THREE.CylinderGeometry(.48,.48,.20,24);
+for(const z of [-1.08,1.08]){
+ const w=new THREE.Mesh(wheelGeo,dark);w.rotation.z=Math.PI/2;w.position.set(0,.48,z);w.castShadow=true;bike.add(w);
+ const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.23,16),chrome);hub.rotation.z=Math.PI/2;hub.position.set(0,.48,z);bike.add(hub);
 }
-cylinderBetween(new THREE.Vector3(0,.68,-.95),new THREE.Vector3(0,1.2,.35),.11,dark);
-cylinderBetween(new THREE.Vector3(0,.72,.85),new THREE.Vector3(0,1.2,.35),.12,dark);
-mesh(new THREE.CapsuleGeometry(.34,.82,6,12),red,0,1.18,.05);
-const tank=mesh(new THREE.SphereGeometry(.48,12,8),red,0,1.35,-.05);tank.scale.set(.78,.62,1.35);
-const seat=mesh(new THREE.BoxGeometry(.40,.16,.78),dark,0,1.52,.62);seat.rotation.x=-.08;
-const front=mesh(new THREE.CapsuleGeometry(.27,.52,5,10),red,0,1.15,-.88);front.rotation.x=Math.PI/2;front.scale.set(1,.7,1);
-const handle=mesh(new THREE.CylinderGeometry(.045,.045,1.05,10),chrome,0,1.67,-.83);handle.rotation.z=Math.PI/2;
-const head=mesh(new THREE.SphereGeometry(.16,12,8),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffe39b,emissiveIntensity:1.7}),0,1.3,-1.17);
-const boxMat=mat(0xb97832,.9);
-const deliveryBox=mesh(new THREE.BoxGeometry(.56,.40,.52),boxMat,0,1.62,.88);
+cylinderBetween(new THREE.Vector3(0,.58,-1.0),new THREE.Vector3(0,1.15,-.25),.10,dark);
+cylinderBetween(new THREE.Vector3(0,.58,1.0),new THREE.Vector3(0,1.18,.25),.11,dark);
+// quadro e tanque
+cylinderBetween(new THREE.Vector3(0,.78,-.65),new THREE.Vector3(0,1.25,.25),.12,dark);
+mesh(new THREE.CapsuleGeometry(.30,.68,8,14),red,0,1.18,-.05);
+const tank=mesh(new THREE.SphereGeometry(.43,16,10),red,0,1.35,-.18);tank.scale.set(.82,.60,1.25);
+mesh(new THREE.BoxGeometry(.40,.16,.72),dark,0,1.49,.42);
+// frente, garfo e guidão
+const front=mesh(new THREE.CapsuleGeometry(.25,.45,6,12),red,0,1.13,-.83);front.rotation.x=Math.PI/2;front.scale.set(1,.72,1);
+cylinderBetween(new THREE.Vector3(0,.58,-1.0),new THREE.Vector3(0,1.28,-.83),.045,chrome);
+const handle=mesh(new THREE.CylinderGeometry(.045,.045,1.0,12),chrome,0,1.63,-.82);handle.rotation.z=Math.PI/2;
+mesh(new THREE.SphereGeometry(.15,14,10),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffe39b,emissiveIntensity:1.7}),0,1.29,-1.10);
+// piloto
+const riderMat=mat(0x252a30,.7), helmetMat=mat(0x111318,.25,.25);
+cyl(.22,.55,0,1.75,.20,riderMat,0,0);
+mesh(new THREE.SphereGeometry(.22,14,10),helmetMat,0,2.15,.05);
+cylinderBetween(new THREE.Vector3(-.18,1.92,-.18),new THREE.Vector3(-.42,1.63,-.72),.055,riderMat);
+cylinderBetween(new THREE.Vector3(.18,1.92,-.18),new THREE.Vector3(.42,1.63,-.72),.055,riderMat);
+// escapamento e baú de entrega atrás do piloto
+cylinderBetween(new THREE.Vector3(.25,.76,.35),new THREE.Vector3(.25,.72,1.0),.055,chrome);
+const boxMat=mat(0xf08a20,.55,.05);
+const deliveryBox=mesh(new THREE.BoxGeometry(.72,.52,.62),boxMat,0,1.48,.92);
+mesh(new THREE.BoxGeometry(.58,.08,.50),dark,0,1.75,.92);
 deliveryBox.visible=false;
 bike.position.set(0,0,0);scene.add(bike);
 
@@ -285,12 +329,12 @@ function update(dt){
   }
   const m=Math.floor(remaining/60),s=Math.floor(remaining%60);$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
- const yaw=bike.rotation.y,followDistance=7.2;
- const desired=bike.position.clone().add(new THREE.Vector3(0,3.5,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw));
+ const yaw=bike.rotation.y,followDistance=9.2;
+ const desired=bike.position.clone().add(new THREE.Vector3(0,4.6,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw));
  camera.position.lerp(desired,1-Math.pow(.00008,dt));
  const lookTarget=bike.position.clone().add(new THREE.Vector3(0,.15,-Math.max(3.5,Math.abs(speed)*.32)).applyAxisAngle(new THREE.Vector3(0,1,0),yaw));lookTarget.y+=1;
  camera.lookAt(lookTarget);
- camera.fov=THREE.MathUtils.lerp(camera.fov,67+Math.min(Math.abs(speed)*.75,10),1-Math.pow(.01,dt));camera.updateProjectionMatrix();
+ camera.fov=THREE.MathUtils.lerp(camera.fov,64+Math.min(Math.abs(speed)*.75,10),1-Math.pow(.01,dt));camera.updateProjectionMatrix();
  camera.rotation.z=THREE.MathUtils.lerp(camera.rotation.z,THREE.MathUtils.clamp(-steer*.035*speed,-.16,.16),1-Math.pow(.01,dt));
  drawMap();
 }
