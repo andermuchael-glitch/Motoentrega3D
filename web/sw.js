@@ -1,9 +1,9 @@
-const CACHE_NAME = "motoentrega-3d-v9";
+const CACHE_NAME = "motoentrega-3d-v10";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=7",
-  "./game.js?v=7",
+  "./style.css?v=10",
+  "./game.js?v=10",
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
@@ -30,6 +30,8 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const request = event.request;
   if (request.method !== "GET") return;
+  // Não interceptar CDN externo (Three.js). O navegador deve buscar o módulo diretamente.
+  if (new URL(request.url).origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(request).then(cached => {
