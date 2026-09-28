@@ -4,7 +4,7 @@ const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x87bce8);
 scene.fog=new THREE.Fog(0x87bce8,80,240);
 
-const camera=new THREE.PerspectiveCamera(65,innerWidth/innerHeight,.1,500);
+const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,500);
 const renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(innerWidth,innerHeight);
@@ -91,9 +91,33 @@ function update(dt){
    const m=Math.floor(remaining/60),s=Math.floor(remaining%60);
    $('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
- const desired=bike.position.clone().add(new THREE.Vector3(0,6,10).applyAxisAngle(new THREE.Vector3(0,1,0),bike.rotation.y));
- camera.position.lerp(desired,1-Math.pow(.001,dt));
- camera.lookAt(bike.position.x,bike.position.y+1,bike.position.z);
+ // Câmera estilo kart: baixa, próxima e atrás da moto.
+ const yaw=bike.rotation.y;
+ const followDistance=5.8;
+ const sideOffset=0;
+ const desired=bike.position.clone().add(
+   new THREE.Vector3(sideOffset,2.65,followDistance)
+     .applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+ );
+ camera.position.lerp(desired,1-Math.pow(.00008,dt));
+
+ // Olha alguns metros à frente para dar sensação de velocidade e controle.
+ const lookAhead=Math.max(2.2,Math.abs(speed)*0.32);
+ const lookTarget=bike.position.clone().add(
+   new THREE.Vector3(0,0,-lookAhead)
+     .applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+ );
+ lookTarget.y+=1.0;
+ camera.lookAt(lookTarget);
+
+ // FOV dinâmico: abre suavemente quando acelera.
+ const targetFov=68+Math.min(Math.abs(speed)*0.75,10);
+ camera.fov=THREE.MathUtils.lerp(camera.fov,targetFov,1-Math.pow(.01,dt));
+ camera.updateProjectionMatrix();
+
+ // Inclinação pequena nas curvas, deixando a câmera mais "viva".
+ const targetRoll=THREE.MathUtils.clamp(-steer*0.035*speed,-0.16,0.16);
+ camera.rotation.z=THREE.MathUtils.lerp(camera.rotation.z,targetRoll,1-Math.pow(.01,dt));
 }
 
 let last=performance.now();
