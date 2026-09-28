@@ -407,7 +407,7 @@ function drawMap(){
 }
 
 function update(dt){
- const throttle=(keys.up?1:0)-(keys.down?.55:0);
+ const throttle=(keys.up?1:0)-(keys.down ? .55 : 0);
  speed+=throttle*14*dt;speed*=Math.pow(.985,dt*60);speed=THREE.MathUtils.clamp(speed,-7,17);
  const steer=(keys.left?-1:0)+(keys.right?1:0);
  bike.rotation.y-=steer*speed*.045*dt;bike.translateZ(-speed*dt);
