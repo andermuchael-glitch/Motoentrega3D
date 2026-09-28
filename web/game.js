@@ -310,41 +310,122 @@ addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')keys.left=tru
 addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key==='a')keys.left=false;if(e.key==='ArrowRight'||e.key==='d')keys.right=false;if(e.key==='ArrowUp'||e.key==='w')keys.up=false;if(e.key==='ArrowDown'||e.key==='s')keys.down=false});
 function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
 
-const mapCanvas=document.getElementById('minimap'),mapCtx=mapCanvas.getContext('2d');
+const mapCanvas=document.getElementById('minimap');
+const mapCtx=mapCanvas.getContext('2d');
+
 function drawMap(){
  const w=mapCanvas.width,h=mapCanvas.height;
+ mapCtx.setTransform(1,0,0,1,0,0);
  mapCtx.clearRect(0,0,w,h);
- mapCtx.fillStyle='#182127';mapCtx.fillRect(0,0,w,h);
- const scale=.48;
- const worldToMap=(x,z)=>({x:w/2+x*scale,y:h/2+z*scale});
- // mapa esquemático da malha do Centro de Balneário Camboriú
- mapCtx.fillStyle='#6c955e';mapCtx.fillRect(0,0,w,h);
- mapCtx.fillStyle='#43a7d4';mapCtx.fillRect(w*.84,0,w*.16,h);
- mapCtx.fillStyle='#e6d2a0';mapCtx.fillRect(w*.80,0,w*.04,h);
- mapCtx.fillStyle='#3b4147';
+
+ // Área do mapa: mesma escala do mundo 3D, enquadrando toda a cidade.
+ const minX=-120,maxX=120,minZ=-120,maxZ=120;
+ const scale=Math.min(w/(maxX-minX),h/(maxZ-minZ))*.92;
+ const ox=w/2,oy=h/2;
+ const worldToMap=(x,z)=>({x:ox+x*scale,y:oy+z*scale});
+
+ // fundo/terra
+ mapCtx.fillStyle='#78a968';
+ mapCtx.fillRect(0,0,w,h);
+
+ // mar e faixa de areia da orla
+ const sea=worldToMap(92,-120), sea2=worldToMap(120,120);
+ mapCtx.fillStyle='#35a9d2';
+ mapCtx.fillRect(sea.x,0,sea2.x-sea.x,h);
+ const beach=worldToMap(86,-120), beach2=worldToMap(92,120);
+ mapCtx.fillStyle='#e8d19b';
+ mapCtx.fillRect(beach.x,0,beach2.x-beach.x,h);
+
+ // quarteirões/ruas
+ mapCtx.lineCap='butt';
  for(const r of roads){
    const p=worldToMap(r.x,r.z);
-   if(r.w>r.d) mapCtx.fillRect(p.x-r.w*scale/2,p.y-r.d*scale/2,w,r.d*scale);
-   else mapCtx.fillRect(p.x-r.w*scale/2,p.y-r.d*scale/2,r.w*scale,h);
+   const rw=Math.max(1.5,r.w*scale), rh=Math.max(1.5,r.d*scale);
+   mapCtx.fillStyle=(r.w>r.d)?'#30383f':'#30383f';
+   mapCtx.fillRect(p.x-rw/2,p.y-rh/2,rw,rh);
  }
- mapCtx.strokeStyle='#f2d76c';mapCtx.lineWidth=1;
+
+ // calçadas e faixas das avenidas principais
  for(const x of [76,48,18,-12,-42]){
-   const p=worldToMap(x,0);mapCtx.beginPath();mapCtx.moveTo(p.x,0);mapCtx.lineTo(p.x,h);mapCtx.stroke();
+   const p=worldToMap(x,0);
+   mapCtx.strokeStyle='#f4d86a';
+   mapCtx.lineWidth=1.5;
+   mapCtx.beginPath();mapCtx.moveTo(p.x,0);mapCtx.lineTo(p.x,h);mapCtx.stroke();
  }
- for(const z of [-100,-82,-64,-46,-28,-10,18,36,54,72,90,108]){
-   const p=worldToMap(0,z);mapCtx.beginPath();mapCtx.moveTo(0,p.y);mapCtx.lineTo(w,p.y);mapCtx.stroke();
+ for(const z of [-100,-82,-64,-46,-28,-10,0,18,36,54,72,90,108]){
+   const p=worldToMap(0,z);
+   mapCtx.strokeStyle='#f4d86a';
+   mapCtx.lineWidth=1.5;
+   mapCtx.beginPath();mapCtx.moveTo(0,p.y);mapCtx.lineTo(w,p.y);mapCtx.stroke();
  }
+
+ // nomes principais, pequenos para caber no minimapa
+ mapCtx.font='bold 7px Arial';
+ mapCtx.textAlign='center';
+ mapCtx.textBaseline='middle';
+ mapCtx.fillStyle='#ffffff';
+ mapCtx.strokeStyle='#172027';
+ mapCtx.lineWidth=3;
+ const labels=[
+   ['AV. ATLÂNTICA',76,-92],
+   ['AV. BRASIL',48,-92],
+   ['3ª AV.',18,-92],
+   ['4ª AV.',-12,-92],
+   ['AV. CENTRAL',58,0]
+ ];
+ for(const [name,x,z] of labels){
+   const p=worldToMap(x,z);
+   mapCtx.strokeText(name,p.x,p.y);
+   mapCtx.fillText(name,p.x,p.y);
+ }
+
+ // destino atual
  const target=state==='pickup'?pickup:customer;
- if(target&&target.visible){
-   const p=worldToMap(target.position.x,target.position.z);
-   mapCtx.fillStyle=state==='pickup'?'#ff9b00':'#42e5ff';
-   mapCtx.beginPath();mapCtx.arc(p.x,p.y,5,0,Math.PI*2);mapCtx.fill();
+ if(target && target.visible){
+   const t=worldToMap(target.position.x,target.position.z);
+
+   // rota direta destacada entre a moto e o destino
+   const me0=worldToMap(bike.position.x,bike.position.z);
+   mapCtx.save();
+   mapCtx.setLineDash([4,3]);
+   mapCtx.strokeStyle=state==='pickup'?'#ff9b00':'#29e6ff';
+   mapCtx.lineWidth=2;
+   mapCtx.beginPath();mapCtx.moveTo(me0.x,me0.y);mapCtx.lineTo(t.x,t.y);mapCtx.stroke();
+   mapCtx.restore();
+
+   // círculo pulsante/halo
+   mapCtx.fillStyle=state==='pickup'?'#ff8a00':'#00d9ff';
+   mapCtx.beginPath();mapCtx.arc(t.x,t.y,6,0,Math.PI*2);mapCtx.fill();
    mapCtx.strokeStyle='#fff';mapCtx.lineWidth=2;mapCtx.stroke();
+
+   mapCtx.font='bold 8px Arial';
+   mapCtx.textAlign='center';
+   mapCtx.textBaseline='bottom';
+   mapCtx.fillStyle='#fff';
+   mapCtx.strokeStyle='#101820';
+   mapCtx.lineWidth=3;
+   const label=state==='pickup'?'PEGAR':'ENTREGAR';
+   mapCtx.strokeText(label,t.x,t.y-8);
+   mapCtx.fillText(label,t.x,t.y-8);
  }
+
+ // posição e direção da moto
  const me=worldToMap(bike.position.x,bike.position.z);
- mapCtx.save();mapCtx.translate(me.x,me.y);mapCtx.rotate(-bike.rotation.y);
- mapCtx.fillStyle='#ff3038';mapCtx.beginPath();mapCtx.moveTo(0,-7);mapCtx.lineTo(4,6);mapCtx.lineTo(0,3);mapCtx.lineTo(-4,6);mapCtx.closePath();mapCtx.fill();
+ mapCtx.save();
+ mapCtx.translate(me.x,me.y);
+ mapCtx.rotate(-bike.rotation.y);
+ mapCtx.fillStyle='#ff3038';
+ mapCtx.strokeStyle='#fff';
+ mapCtx.lineWidth=1.5;
+ mapCtx.beginPath();
+ mapCtx.moveTo(0,-7);mapCtx.lineTo(5,6);mapCtx.lineTo(0,3);mapCtx.lineTo(-5,6);mapCtx.closePath();
+ mapCtx.fill();mapCtx.stroke();
  mapCtx.restore();
+
+ // borda interna para separar o mapa do HUD
+ mapCtx.strokeStyle='#ffffff55';
+ mapCtx.lineWidth=2;
+ mapCtx.strokeRect(1,1,w-2,h-2);
 }
 
 function update(dt){
