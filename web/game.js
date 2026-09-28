@@ -223,39 +223,74 @@ const pickup=marker(new THREE.Vector3(58,.1,-24),0xff9b00);
 const customer=marker(new THREE.Vector3(-28,.1,-50),0x42e5ff);
 pickup.visible=false;customer.visible=false;
 
-// MOTOCICLETA — silhueta esportiva com piloto e baú de entrega
+// MOTOCICLETA — modelo compacto esportivo, com piloto visível e baú separado
 const bike=new THREE.Group();
-const red=mat(0xd9252a,.32,.18), redDark=mat(0x8f1116,.4,.15), dark=mat(0x17191d,.28,.35), chrome=mat(0xb9c5cf,.2,.8);
-const wheelGeo=new THREE.CylinderGeometry(.48,.48,.20,24);
-for(const z of [-1.08,1.08]){
- const w=new THREE.Mesh(wheelGeo,dark);w.rotation.z=Math.PI/2;w.position.set(0,.48,z);w.castShadow=true;bike.add(w);
- const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.23,16),chrome);hub.rotation.z=Math.PI/2;hub.position.set(0,.48,z);bike.add(hub);
+const red=mat(0xd9252a,.30,.22), redDark=mat(0x8d1015,.45,.18);
+const dark=mat(0x14171b,.30,.35), rubber=mat(0x090b0e,.75,.20), chrome=mat(0xb9c5cf,.18,.85);
+const glass=mat(0x101820,.15,.65);
+
+// rodas finas
+for(const z of [-1.02,1.02]){
+ const wheel=mesh(new THREE.CylinderGeometry(.43,.43,.16,24),rubber,0,.47,z);
+ wheel.rotation.z=Math.PI/2;
+ const hub=mesh(new THREE.CylinderGeometry(.11,.11,.18,16),chrome,0,.47,z);
+ hub.rotation.z=Math.PI/2;
 }
-cylinderBetween(new THREE.Vector3(0,.58,-1.0),new THREE.Vector3(0,1.15,-.25),.10,dark);
-cylinderBetween(new THREE.Vector3(0,.58,1.0),new THREE.Vector3(0,1.18,.25),.11,dark);
-// quadro e tanque
-cylinderBetween(new THREE.Vector3(0,.78,-.65),new THREE.Vector3(0,1.25,.25),.12,dark);
-mesh(new THREE.CapsuleGeometry(.30,.68,8,14),red,0,1.18,-.05);
-const tank=mesh(new THREE.SphereGeometry(.43,16,10),red,0,1.35,-.18);tank.scale.set(.82,.60,1.25);
-mesh(new THREE.BoxGeometry(.40,.16,.72),dark,0,1.49,.42);
-// frente, garfo e guidão
-const front=mesh(new THREE.CapsuleGeometry(.25,.45,6,12),red,0,1.13,-.83);front.rotation.x=Math.PI/2;front.scale.set(1,.72,1);
-cylinderBetween(new THREE.Vector3(0,.58,-1.0),new THREE.Vector3(0,1.28,-.83),.045,chrome);
-const handle=mesh(new THREE.CylinderGeometry(.045,.045,1.0,12),chrome,0,1.63,-.82);handle.rotation.z=Math.PI/2;
-mesh(new THREE.SphereGeometry(.15,14,10),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffe39b,emissiveIntensity:1.7}),0,1.29,-1.10);
-// piloto
-const riderMat=mat(0x252a30,.7), helmetMat=mat(0x111318,.25,.25);
-cyl(.22,.55,0,1.75,.20,riderMat,0,0);
-mesh(new THREE.SphereGeometry(.22,14,10),helmetMat,0,2.15,.05);
-cylinderBetween(new THREE.Vector3(-.18,1.92,-.18),new THREE.Vector3(-.42,1.63,-.72),.055,riderMat);
-cylinderBetween(new THREE.Vector3(.18,1.92,-.18),new THREE.Vector3(.42,1.63,-.72),.055,riderMat);
-// escapamento e baú de entrega atrás do piloto
-cylinderBetween(new THREE.Vector3(.25,.76,.35),new THREE.Vector3(.25,.72,1.0),.055,chrome);
-const boxMat=mat(0xf08a20,.55,.05);
-const deliveryBox=mesh(new THREE.BoxGeometry(.72,.52,.62),boxMat,0,1.48,.92);
-mesh(new THREE.BoxGeometry(.58,.08,.50),dark,0,1.75,.92);
+
+// quadro central e braço traseiro
+cylinderBetween(new THREE.Vector3(0,.55,-.82),new THREE.Vector3(0,.92,.05),.07,dark);
+cylinderBetween(new THREE.Vector3(0,.55,.82),new THREE.Vector3(0,.92,.05),.07,dark);
+cylinderBetween(new THREE.Vector3(0,.70,.72),new THREE.Vector3(0,.78,-.45),.06,dark);
+
+// corpo/fairing estreito
+const body=mesh(new THREE.SphereGeometry(1,20,12),red,0,1.00,-.12);
+body.scale.set(.34,.34,.72);
+
+// tanque esportivo
+const tank=mesh(new THREE.SphereGeometry(1,20,12),red,0,1.28,-.30);
+tank.scale.set(.37,.30,.52);
+
+// banco preto, deixando a silhueta da moto aparente
+const seat=mesh(new THREE.BoxGeometry(.38,.13,.62),dark,0,1.27,.38);
+seat.rotation.x=-.08;
+
+// carenagem frontal e para-lama
+const nose=mesh(new THREE.SphereGeometry(1,18,10),red,0,1.03,-.82);
+nose.scale.set(.27,.30,.38);
+const fender=mesh(new THREE.SphereGeometry(1,18,10),redDark,0,.68,-1.02);
+fender.scale.set(.30,.10,.36);
+
+// garfo e guidão
+cylinderBetween(new THREE.Vector3(-.12,.52,-1.02),new THREE.Vector3(-.16,1.12,-.82),.035,chrome);
+cylinderBetween(new THREE.Vector3(.12,.52,-1.02),new THREE.Vector3(.16,1.12,-.82),.035,chrome);
+const handle=mesh(new THREE.CylinderGeometry(.035,.035,.78,12),chrome,0,1.43,-.78);
+handle.rotation.z=Math.PI/2;
+
+// painel e farol
+mesh(new THREE.BoxGeometry(.28,.13,.18),glass,0,1.40,-.66);
+mesh(new THREE.SphereGeometry(.11,16,10),new THREE.MeshStandardMaterial({color:0xffffd0,emissive:0xffe39b,emissiveIntensity:2}),0,1.18,-1.12);
+
+// piloto sentado e visível
+const riderMat=mat(0x252a30,.55,.25), helmetMat=mat(0x111318,.20,.35);
+const torso=mesh(new THREE.CapsuleGeometry(.18,.40,6,12),riderMat,0,1.72,.18);
+torso.rotation.x=-.12;
+mesh(new THREE.SphereGeometry(.20,16,12),helmetMat,0,2.10,-.02);
+cylinderBetween(new THREE.Vector3(-.14,1.82,.08),new THREE.Vector3(-.34,1.47,-.60),.045,riderMat);
+cylinderBetween(new THREE.Vector3(.14,1.82,.08),new THREE.Vector3(.34,1.47,-.60),.045,riderMat);
+cylinderBetween(new THREE.Vector3(-.10,1.56,.32),new THREE.Vector3(-.14,.78,.68),.06,riderMat);
+cylinderBetween(new THREE.Vector3(.10,1.56,.32),new THREE.Vector3(.14,.78,.68),.06,riderMat);
+
+// escapamento
+cylinderBetween(new THREE.Vector3(.25,.72,.15),new THREE.Vector3(.25,.66,.92),.055,chrome);
+
+// baú de entrega compacto — aparece quando houver pedido
+const boxMat=mat(0xf08a20,.50,.08);
+const deliveryBox=mesh(new THREE.BoxGeometry(.64,.42,.56),boxMat,0,1.45,.92);
+mesh(new THREE.BoxGeometry(.50,.07,.43),dark,0,1.69,.92);
 deliveryBox.visible=false;
-bike.position.set(0,0,0);scene.add(bike);
+
+bike.position.set(0,0,0);
+scene.add(bike);
 
 let money=0,state='idle',remaining=180,orderReward=18,speed=0;
 const keys={left:false,right:false,up:false,down:false};
