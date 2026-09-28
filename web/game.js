@@ -2,30 +2,54 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.m
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x79b7e5);
-scene.fog=new THREE.Fog(0x79b7e5,105,310);
+scene.fog=new THREE.Fog(0x79b7e5,120,320);
 
 const camera=new THREE.PerspectiveCamera(67,innerWidth/innerHeight,.1,600);
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+
+// Pré-checagem: falhar de forma visível é muito melhor que deixar a tela preta.
+const probe=document.createElement('canvas');
+const gl=probe.getContext('webgl2',{alpha:false,antialias:false});
+if(!gl) throw new Error('WebGL 2 não está disponível neste navegador/dispositivo.');
+
+const renderer=new THREE.WebGLRenderer({
+  antialias:false,
+  powerPreference:'high-performance',
+  alpha:false,
+  depth:true,
+  stencil:false
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
 renderer.setSize(innerWidth,innerHeight);
-renderer.shadowMap.enabled=true;
-renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled=false;
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.08;
+renderer.toneMappingExposure=1.05;
+renderer.setClearColor(0x79b7e5,1);
 document.body.appendChild(renderer.domElement);
+
+renderer.domElement.addEventListener('webglcontextlost',event=>{
+  event.preventDefault();
+  showRuntimeError(new Error('O WebGL perdeu o contexto gráfico. Recarregue a página.'));
+});
+renderer.domElement.addEventListener('webglcontextrestored',()=>{
+  hideRuntimeError();
+});
 
 scene.add(new THREE.HemisphereLight(0xd9efff,0x43513d,2.5));
 const sun=new THREE.DirectionalLight(0xfff1d2,3.1);
-sun.position.set(50,90,35);sun.castShadow=true;
-sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.left=-130;sun.shadow.camera.right=130;sun.shadow.camera.top=130;sun.shadow.camera.bottom=-130;
+sun.position.set(50,90,35);sun.castShadow=false;
 scene.add(sun);
 
 const mat=(color,rough=.8,metal=0)=>new THREE.MeshStandardMaterial({color,roughness:rough,metalness:metal});
 const city=[];
 function mesh(geo,material,x,y,z,rot=0){
- const m=new THREE.Mesh(geo,material);m.position.set(x,y,z);m.rotation.y=rot;m.castShadow=true;m.receiveShadow=true;scene.add(m);return m;
+ const m=new THREE.Mesh(geo,material);
+ m.position.set(x,y,z);
+ m.rotation.y=rot;
+ m.castShadow=false;
+ m.receiveShadow=true;
+ scene.add(m);
+ return m;
 }
 function box(x,y,z,w,h,d,color,rot=0){return mesh(new THREE.BoxGeometry(w,h,d),mat(color),x,y,z,rot)}
 function cyl(radius,height,x,y,z,color,rotX=0,rotZ=0){
@@ -100,22 +124,44 @@ let seed=19;
 function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
 
 function addBuilding(x,z,w,d,h,color,index){
- const b=box(x,h/2,z,w,h,d,color);
- box(x,h+.15,z,w+.15,d+.15,0x50545a);
- const glass=mat(index%3===0?0x73c8e8:0x5c9fba,.25,.15);
- for(let yy=2.2;yy<h-1;yy+=2.6){
-   for(let xx=-w/2+1.3;xx<w/2-1;xx+=2.7){
-     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z-d/2-.04);
-     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z+d/2+.04);
-   }
- }
- for(let yy=2.2;yy<h-1;yy+=2.6){
-   for(let zz=-d/2+1.3;zz<d/2-1;zz+=2.7)
-     mesh(new THREE.BoxGeometry(.055,.72,1.25),glass,x-w/2-.04,yy,z+zz);
- }
- // porta e marquise simples
- mesh(new THREE.BoxGeometry(1.4,2.1,.08),mat(0x4b3024),x,1.05,z-d/2-.07);
- return b;
+  // Cada prédio usa poucas malhas: o protótipo anterior criava centenas
+  // de janelas individuais por prédio, sobrecarregando o GPU do celular.
+  const g=new THREE.Group();
+  g.position.set(x,0,z);
+  scene.add(g);
+
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat(color,.88,0));
+  body.position.y=h/2;
+  body.receiveShadow=true;
+  g.add(body);
+
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(w+.18,.18,d+.18),mat(0x555b62,.92,0));
+  roof.position.y=h+.09;
+  g.add(roof);
+
+  const windowMat=mat(index%3===0?0x73c8e8:0x5c9fba,.32,.12);
+  const front=new THREE.Mesh(new THREE.BoxGeometry(Math.max(.8,w-.8),Math.min(1.25,Math.max(.55,h*.045)),.055),windowMat);
+  front.position.set(0,Math.max(1.8,h*.58),-d/2-.035);
+  g.add(front);
+
+  const back=front.clone();
+  back.position.z=d/2+.035;
+  g.add(back);
+
+  if(w>7){
+    const side=new THREE.Mesh(new THREE.BoxGeometry(.055,Math.min(1.25,Math.max(.55,h*.045)),Math.max(.8,d-.8)),windowMat);
+    side.position.set(-w/2-.035,Math.max(1.8,h*.58),0);
+    g.add(side);
+    const side2=side.clone();
+    side2.position.x=w/2+.035;
+    g.add(side2);
+  }
+
+  const door=new THREE.Mesh(new THREE.BoxGeometry(1.35,2.05,.08),mat(0x4b3024,.9,0));
+  door.position.set(0,1.025,-d/2-.08);
+  g.add(door);
+
+  return g;
 }
 
 // Todas as ruas verticais/horizontais formam os limites dos quarteirões.
@@ -130,7 +176,7 @@ for(let ix=0;ix<verticalRoads.length-1;ix++){
    if(w<5||d<5||x>82) continue;
 
    const central=x>0 && x<80 && Math.abs(z)<85;
-   const count=central?(rnd()>.28?2:1):(rnd()>.62?2:1);
+   const count=central?(rnd()>.58?2:1):(rnd()>.78?2:1);
    for(let n=0;n<count;n++){
      const bw=Math.min(w*.72,7+rnd()*7);
      const bd=Math.min(d*.72,7+rnd()*7);
@@ -271,6 +317,10 @@ deliveryBox.visible=false;
 
 bike.position.set(0,0,0);
 scene.add(bike);
+
+// Estado inicial explícito: evita o primeiro frame com câmera dentro da moto.
+camera.position.set(0,4.8,9.2);
+camera.lookAt(0,1,-4);
 
 let money=0,state='idle',remaining=180,orderReward=18,speed=0;
 const keys={left:false,right:false,up:false,down:false};
@@ -435,6 +485,35 @@ function update(dt){
  drawMap();
 }
 let last=performance.now();
-function animate(now){const dt=Math.min((now-last)/1000,.05);last=now;update(dt);renderer.render(scene,camera);requestAnimationFrame(animate)}
-requestAnimationFrame(animate);
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));});
+let runtimeFailed=false;
+function showRuntimeError(err){
+  if(runtimeFailed)return;
+  runtimeFailed=true;
+  console.error('[Motoentrega3D]',err);
+  const box=document.getElementById('runtimeError');
+  if(box){
+    box.hidden=false;
+    box.innerHTML='<b>Falha na renderização 3D</b><br><small>'+String(err?.message||err).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</small><br><button onclick="location.reload()">Recarregar</button>';
+  }
+}
+function hideRuntimeError(){
+  const box=document.getElementById('runtimeError');
+  if(box)box.hidden=true;
+}
+function animate(now){
+  try{
+    const dt=Math.min((now-last)/1000,.05);
+    last=now;
+    update(dt);
+    renderer.render(scene,camera);
+  }catch(err){
+    showRuntimeError(err);
+  }
+}
+renderer.setAnimationLoop(animate);
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
+});
