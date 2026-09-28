@@ -94,28 +94,6 @@ for(const x of [76,48,18,-12,-42]){
 }
 
 // prédios: mais altos e densos no Centro/orla
-const buildingColors=[0xc9b7a7,0x9aa9b4,0xd8c9ae,0x8799a8,0xb79d99,0x8eaa8d,0xbfc3c8];
-function addBuilding(x,z,w,d,h,color,index){
- const b=box(x,h/2,z,w,h,d,color);
- const roof=box(x,h+.15,z,w+.15,d+.15,0x50545a);
- const glass=mat(index%3===0?0x73c8e8:0x5c9fba,.25,.15);
- for(let yy=2.2;yy<h-1;yy+=2.6){
-   for(let xx=-w/2+1.3;xx<w/2-1;xx+=2.7){
-     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z-d/2-.04);
-     mesh(new THREE.BoxGeometry(1.25,.72,.055),glass,x+xx,yy,z+d/2+.04);
-   }
- }
- for(let yy=2.2;yy<h-1;yy+=2.6){
-   for(let zz=-d/2+1.3;zz<d/2-1;zz+=2.7)
-     mesh(new THREE.BoxGeometry(.055,.72,1.25),glass,x-w/2-.04,yy,z+zz);
- }
- mesh(new THREE.BoxGeometry(1.4,2.1,.08),mat(0x4b3024),x,1.05,z-d/2-.07);
- return b;
-}
-
-let seed=19;
-function rnd(){seed=(seed*9301+49297)%233280;return seed/233280}
-
 // QUARTEIRÕES — prédios ficam entre as ruas, nunca sobre a pista
 const buildingColors=[0xc9b7a7,0x9aa9b4,0xd8c9ae,0x8799a8,0xb79d99,0x8eaa8d,0xbfc3c8];
 let seed=19;
