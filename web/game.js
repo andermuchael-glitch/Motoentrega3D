@@ -90,8 +90,9 @@ for(const z of [-1.0,1.0]){
  const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.27,16),chromeMat);
  hub.rotation.z=Math.PI/2;hub.position.set(0,.48,z);bike.add(hub);
 }
-const deliveryBox=new THREE.Mesh(new THREE.BoxGeometry(.78,.62,.72),new THREE.MeshStandardMaterial({color:0xb87932,roughness:.9}));
-deliveryBox.position.set(0,1.7,1.05);deliveryBox.castShadow=true;bike.add(deliveryBox);
+const deliveryBox=new THREE.Mesh(new THREE.BoxGeometry(.72,.52,.62),new THREE.MeshStandardMaterial({color:0xb87932,roughness:.9}));
+deliveryBox.position.set(0,1.62,1.02);deliveryBox.castShadow=true;bike.add(deliveryBox);
+deliveryBox.visible=false;
 bike.position.set(0,0,0);scene.add(bike);
 bike.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});
 
@@ -100,7 +101,7 @@ const keys={left:false,right:false,up:false,down:false};
 const $=id=>document.getElementById(id);
 $('start').onclick=()=>{
  if(state==='idle'||state==='completed'||state==='failed'){
-   state='pickup';remaining=180;pickup.visible=true;customer.visible=false;
+   state='pickup';remaining=180;pickup.visible=true;customer.visible=false;deliveryBox.visible=true;
    $('destination').textContent='Restaurante Central';
    $('status').textContent='Vá até o restaurante para pegar o pedido';
    $('start').style.display='none';
@@ -126,21 +127,21 @@ function update(dt){
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
    remaining-=dt;
-   if(remaining<=0){remaining=0;state='failed';pickup.visible=false;customer.visible=false;$('status').textContent='Entrega perdida';$('message').textContent='⏰ Você perdeu o prazo!';$('start').textContent='📦 NOVO PEDIDO';$('start').style.display='block'}
+   if(remaining<=0){remaining=0;state='failed';pickup.visible=false;customer.visible=false;deliveryBox.visible=false;$('status').textContent='Entrega perdida';$('message').textContent='⏰ Você perdeu o prazo!';$('start').textContent='📦 NOVO PEDIDO';$('start').style.display='block'}
    const target=state==='pickup'?pickup:customer;
    if(target.visible&&dist(bike.position,target.position)<4){
      if(state==='pickup'){state='delivery';pickup.visible=false;customer.visible=true;$('destination').textContent='Cliente';$('status').textContent='Pedido coletado! Entregue ao cliente';$('message').textContent='📦 Pedido na mochila!'}
-     else {state='completed';customer.visible=false;money+=orderReward;$('money').textContent=money.toFixed(2).replace('.',',');$('status').textContent='Entrega concluída!';$('message').textContent='💰 + R$ '+orderReward+',00';$('start').textContent='📦 PRÓXIMO PEDIDO';$('start').style.display='block'}
+     else {state='completed';customer.visible=false;deliveryBox.visible=false;money+=orderReward;$('money').textContent=money.toFixed(2).replace('.',',');$('status').textContent='Entrega concluída!';$('message').textContent='💰 + R$ '+orderReward+',00';$('start').textContent='📦 PRÓXIMO PEDIDO';$('start').style.display='block'}
    }
    const m=Math.floor(remaining/60),s=Math.floor(remaining%60);
    $('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
  // Câmera estilo kart: baixa, próxima e atrás da moto.
  const yaw=bike.rotation.y;
- const followDistance=5.8;
+ const followDistance=6.8;
  const sideOffset=0;
  const desired=bike.position.clone().add(
-   new THREE.Vector3(sideOffset,2.65,followDistance)
+   new THREE.Vector3(sideOffset,2.9,followDistance)
      .applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
  );
  camera.position.lerp(desired,1-Math.pow(.00008,dt));
