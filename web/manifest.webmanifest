@@ -1,0 +1,28 @@
+{
+  "name": "Motoentrega 3D",
+  "short_name": "Motoentrega 3D",
+  "description": "Jogo 3D de entregas de moto.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111820",
+  "theme_color": "#111820",
+  "categories": ["games", "simulation"],
+  "icons": [
+    {
+      "src": "./icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
