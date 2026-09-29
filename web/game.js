@@ -530,7 +530,7 @@ function update(dt){
    cruise=false;
    keys.up=false;
    document.querySelector('#controls [data-key="up"]')?.classList.remove('pressed');
-
+ }
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
   remaining-=dt;
