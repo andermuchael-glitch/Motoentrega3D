@@ -321,9 +321,12 @@ scene.add(bike);
 // Estado inicial explícito: evita o primeiro frame com câmera dentro da moto.
 camera.position.set(0,4.8,9.2);
 camera.lookAt(0,1,-4);
+document.querySelector('#controls [data-key="up"]')?.classList.remove('pressed');
 
 let money=0,state='idle',remaining=180,orderReward=18,speed=0;
 const keys={left:false,right:false,up:false,down:false};
+let cruise=false; // acelerador persistente para toque no celular
+
 const $=id=>document.getElementById(id);
 $('start').onclick=()=>{
  if(state==='idle'||state==='completed'||state==='failed'){
@@ -331,12 +334,19 @@ $('start').onclick=()=>{
   $('destination').textContent='Restaurante Central';$('status').textContent='Vá até o restaurante para pegar o pedido';$('start').style.display='none';
  }
 };
-// CONTROLES — toque/segure sem deixar o navegador transformar o gesto em câmera/scroll.
+// CONTROLES — arcade/mobile.
+// ▲ é um acelerador persistente: um toque inicia a moto, outro toque desacelera.
+// ◀/▶ ficam ativos enquanto pressionados. ▼ é freio/ré enquanto pressionado.
 const controlButtons=document.querySelectorAll('#controls button');
 function setControl(k,value){
+  if(k==='up' && value){
+    cruise=!cruise;
+    keys.up=cruise;
+    speed=Math.max(speed,cruise?6:0);
+    document.querySelector('#controls [data-key="up"]')?.classList.toggle('pressed',cruise);
+    return;
+  }
   if(k) keys[k]=value;
-  if(k==='up'&&value) speed=Math.max(speed,7.5);
-  if(k==='down'&&value) speed=Math.min(speed,-4.0);
 }
 controlButtons.forEach(button=>{
  const k=button.dataset.key;
@@ -345,11 +355,11 @@ controlButtons.forEach(button=>{
    e.preventDefault();e.stopPropagation();
    try{button.setPointerCapture?.(e.pointerId)}catch(_){}
    setControl(k,true);
-   button.classList.add('pressed');
+   if(k!=='up') button.classList.add('pressed');
  };
  const release=e=>{
    e.preventDefault();e.stopPropagation();
-   setControl(k,false);
+   if(k!=='up') setControl(k,false);
    button.classList.remove('pressed');
  };
  button.addEventListener('pointerdown',press,{passive:false});
@@ -357,22 +367,20 @@ controlButtons.forEach(button=>{
  button.addEventListener('pointercancel',release,{passive:false});
  button.addEventListener('lostpointercapture',release,{passive:false});
 });
-addEventListener('pointerup',()=>{
- keys.left=keys.right=keys.up=keys.down=false;
- controlButtons.forEach(b=>b.classList.remove('pressed'));
-},{passive:true});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(e.key==='ArrowLeft'||k==='a'){e.preventDefault();keys.left=true}
  if(e.key==='ArrowRight'||k==='d'){e.preventDefault();keys.right=true}
- if(e.key==='ArrowUp'||k==='w'){e.preventDefault();keys.up=true}
+ if(e.key==='ArrowUp'||k==='w'){
+   e.preventDefault();
+   if(!e.repeat) setControl('up',true);
+ }
  if(e.key==='ArrowDown'||k==='s'){e.preventDefault();keys.down=true}
 });
 addEventListener('keyup',e=>{
  const k=e.key.toLowerCase();
  if(e.key==='ArrowLeft'||k==='a')keys.left=false;
  if(e.key==='ArrowRight'||k==='d')keys.right=false;
- if(e.key==='ArrowUp'||k==='w')keys.up=false;
  if(e.key==='ArrowDown'||k==='s')keys.down=false;
 });
 function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
@@ -496,22 +504,32 @@ function drawMap(){
 }
 
 function update(dt){
- const throttle=(keys.up?1:0)-(keys.down?.72:0);
- if(keys.up){
-   speed+=18*dt;
+ const accelerating=cruise && !keys.down;
+ if(accelerating){
+   speed+=16*dt;
  }else if(keys.down){
-   speed-=14*.72*dt;
+   speed-=11*dt;
  }else{
-   speed*=Math.pow(.975,dt*60);
+   speed*=Math.pow(.94,dt*60);
  }
- speed=THREE.MathUtils.clamp(speed,-7,17);
+ speed=THREE.MathUtils.clamp(speed,-7,16);
 
  const steer=(keys.left?-1:0)+(keys.right?1:0);
- const steeringStrength=1.9+Math.min(Math.abs(speed)*.06,1.0);
+ const steeringStrength=1.8+Math.min(Math.abs(speed)*.055,1.1);
  if(steer!==0){
    bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
  }
  bike.translateZ(-speed*dt);
+
+ // Limites de segurança: se o jogador sair da área jogável, reposiciona
+ // somente a posição, preservando a direção da moto.
+ if(Math.abs(bike.position.x)>116 || Math.abs(bike.position.z)>116){
+   bike.position.x=THREE.MathUtils.clamp(bike.position.x,-112,112);
+   bike.position.z=THREE.MathUtils.clamp(bike.position.z,-112,112);
+   speed=0;
+   cruise=false;
+   keys.up=false;
+   document.querySelector('#controls [data-key="up"]')?.classList.remove('pressed');
 
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
@@ -525,26 +543,19 @@ function update(dt){
   const m=Math.floor(remaining/60),s=Math.floor(remaining%60);$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
  const yaw=bike.rotation.y;
- const followDistance=7.2;
- const desired=bike.position.clone().add(
-   new THREE.Vector3(0,3.5,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
- );
- camera.position.lerp(desired,1-Math.pow(.0008,dt));
+ // Câmera chase fixa em relação à moto. Sem ler/alterar o input da câmera.
+ const camOffset=new THREE.Vector3(0,3.4,7.0)
+   .applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+ camera.position.copy(bike.position).add(camOffset);
 
  const lookTarget=bike.position.clone().add(
-   new THREE.Vector3(0,1.0,-2.2).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+   new THREE.Vector3(0,1.0,-1.8)
+     .applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
  );
  camera.lookAt(lookTarget);
- camera.fov=THREE.MathUtils.lerp(
-   camera.fov,64+Math.min(Math.abs(speed)*.55,8),
-   1-Math.pow(.01,dt)
- );
+ camera.fov=64+Math.min(Math.abs(speed)*.45,7);
  camera.updateProjectionMatrix();
- camera.rotation.z=THREE.MathUtils.lerp(
-   camera.rotation.z,
-   THREE.MathUtils.clamp(-steer*.025*speed,-.12,.12),
-   1-Math.pow(.01,dt)
- );
+ camera.rotation.z=THREE.MathUtils.clamp(-steer*.018*speed,-.10,.10);
  drawMap();
 }
 let last=performance.now();
