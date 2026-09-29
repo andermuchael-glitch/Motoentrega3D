@@ -331,13 +331,48 @@ $('start').onclick=()=>{
   $('destination').textContent='Restaurante Central';$('status').textContent='Vá até o restaurante para pegar o pedido';$('start').style.display='none';
  }
 };
-document.querySelectorAll('#controls button').forEach(b=>{
- const k=b.dataset.key;
- const on=e=>{e.preventDefault();keys[k]=true};const off=e=>{e.preventDefault();keys[k]=false};
- b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointercancel',off);b.addEventListener('pointerleave',off);
+// CONTROLES — toque/segure sem deixar o navegador transformar o gesto em câmera/scroll.
+const controlButtons=document.querySelectorAll('#controls button');
+function setControl(k,value){if(k) keys[k]=value}
+controlButtons.forEach(button=>{
+ const k=button.dataset.key;
+ button.style.touchAction='none';
+ const press=e=>{
+   e.preventDefault();e.stopPropagation();
+   try{button.setPointerCapture?.(e.pointerId)}catch(_){}
+   setControl(k,true);
+   if(k==='up') speed=Math.max(speed,5.5);
+   if(k==='down') speed=Math.min(speed,-3.5);
+   button.classList.add('pressed');
+ };
+ const release=e=>{
+   e.preventDefault();e.stopPropagation();
+   setControl(k,false);
+   button.classList.remove('pressed');
+ };
+ button.addEventListener('pointerdown',press,{passive:false});
+ button.addEventListener('pointerup',release,{passive:false});
+ button.addEventListener('pointercancel',release,{passive:false});
+ button.addEventListener('lostpointercapture',release,{passive:false});
 });
-addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='a')keys.left=true;if(e.key==='ArrowRight'||e.key==='d')keys.right=true;if(e.key==='ArrowUp'||e.key==='w')keys.up=true;if(e.key==='ArrowDown'||e.key==='s')keys.down=true});
-addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key==='a')keys.left=false;if(e.key==='ArrowRight'||e.key==='d')keys.right=false;if(e.key==='ArrowUp'||e.key==='w')keys.up=false;if(e.key==='ArrowDown'||e.key==='s')keys.down=false});
+addEventListener('pointerup',()=>{
+ keys.left=keys.right=keys.up=keys.down=false;
+ controlButtons.forEach(b=>b.classList.remove('pressed'));
+},{passive:true});
+addEventListener('keydown',e=>{
+ const k=e.key.toLowerCase();
+ if(e.key==='ArrowLeft'||k==='a'){e.preventDefault();keys.left=true}
+ if(e.key==='ArrowRight'||k==='d'){e.preventDefault();keys.right=true}
+ if(e.key==='ArrowUp'||k==='w'){e.preventDefault();keys.up=true}
+ if(e.key==='ArrowDown'||k==='s'){e.preventDefault();keys.down=true}
+});
+addEventListener('keyup',e=>{
+ const k=e.key.toLowerCase();
+ if(e.key==='ArrowLeft'||k==='a')keys.left=false;
+ if(e.key==='ArrowRight'||k==='d')keys.right=false;
+ if(e.key==='ArrowUp'||k==='w')keys.up=false;
+ if(e.key==='ArrowDown'||k==='s')keys.down=false;
+});
 function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
 
 const mapCanvas=document.getElementById('minimap');
@@ -459,11 +494,15 @@ function drawMap(){
 }
 
 function update(dt){
- const throttle=(keys.up?1:0)-(keys.down ? .55 : 0);
- speed+=throttle*14*dt;speed*=Math.pow(.985,dt*60);speed=THREE.MathUtils.clamp(speed,-7,17);
+ const throttle=(keys.up?1:0)-(keys.down?.72:0);
+ if(throttle>0) speed+=throttle*18*dt;
+ else if(throttle<0) speed+=throttle*14*dt;
+ else speed*=Math.pow(.982,dt*60);
+ speed=THREE.MathUtils.clamp(speed,-7,17);
  const steer=(keys.left?-1:0)+(keys.right?1:0);
- bike.rotation.y-=steer*speed*.045*dt;bike.translateZ(-speed*dt);
- bike.position.x=THREE.MathUtils.clamp(bike.position.x,-112,112);bike.position.z=THREE.MathUtils.clamp(bike.position.z,-112,112);
+ const steeringStrength=1.65+Math.min(Math.abs(speed)*.055,.95);
+ bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
+ bike.translateZ(-speed*dt);
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
   remaining-=dt;
