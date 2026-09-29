@@ -333,7 +333,11 @@ $('start').onclick=()=>{
 };
 // CONTROLES — toque/segure sem deixar o navegador transformar o gesto em câmera/scroll.
 const controlButtons=document.querySelectorAll('#controls button');
-function setControl(k,value){if(k) keys[k]=value}
+function setControl(k,value){
+  if(k) keys[k]=value;
+  if(k==='up'&&value) speed=Math.max(speed,7.5);
+  if(k==='down'&&value) speed=Math.min(speed,-4.0);
+}
 controlButtons.forEach(button=>{
  const k=button.dataset.key;
  button.style.touchAction='none';
@@ -341,8 +345,6 @@ controlButtons.forEach(button=>{
    e.preventDefault();e.stopPropagation();
    try{button.setPointerCapture?.(e.pointerId)}catch(_){}
    setControl(k,true);
-   if(k==='up') speed=Math.max(speed,5.5);
-   if(k==='down') speed=Math.min(speed,-3.5);
    button.classList.add('pressed');
  };
  const release=e=>{
@@ -495,14 +497,22 @@ function drawMap(){
 
 function update(dt){
  const throttle=(keys.up?1:0)-(keys.down?.72:0);
- if(throttle>0) speed+=throttle*18*dt;
- else if(throttle<0) speed+=throttle*14*dt;
- else speed*=Math.pow(.982,dt*60);
+ if(keys.up){
+   speed+=18*dt;
+ }else if(keys.down){
+   speed-=14*.72*dt;
+ }else{
+   speed*=Math.pow(.975,dt*60);
+ }
  speed=THREE.MathUtils.clamp(speed,-7,17);
+
  const steer=(keys.left?-1:0)+(keys.right?1:0);
- const steeringStrength=1.65+Math.min(Math.abs(speed)*.055,.95);
- bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
+ const steeringStrength=1.9+Math.min(Math.abs(speed)*.06,1.0);
+ if(steer!==0){
+   bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
+ }
  bike.translateZ(-speed*dt);
+
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
   remaining-=dt;
@@ -514,13 +524,27 @@ function update(dt){
   }
   const m=Math.floor(remaining/60),s=Math.floor(remaining%60);$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
- const yaw=bike.rotation.y,followDistance=9.2;
- const desired=bike.position.clone().add(new THREE.Vector3(0,4.6,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw));
- camera.position.lerp(desired,1-Math.pow(.00008,dt));
- const lookTarget=bike.position.clone().add(new THREE.Vector3(0,.15,-Math.max(3.5,Math.abs(speed)*.32)).applyAxisAngle(new THREE.Vector3(0,1,0),yaw));lookTarget.y+=1;
+ const yaw=bike.rotation.y;
+ const followDistance=7.2;
+ const desired=bike.position.clone().add(
+   new THREE.Vector3(0,3.5,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+ );
+ camera.position.lerp(desired,1-Math.pow(.0008,dt));
+
+ const lookTarget=bike.position.clone().add(
+   new THREE.Vector3(0,1.0,-2.2).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+ );
  camera.lookAt(lookTarget);
- camera.fov=THREE.MathUtils.lerp(camera.fov,64+Math.min(Math.abs(speed)*.75,10),1-Math.pow(.01,dt));camera.updateProjectionMatrix();
- camera.rotation.z=THREE.MathUtils.lerp(camera.rotation.z,THREE.MathUtils.clamp(-steer*.035*speed,-.16,.16),1-Math.pow(.01,dt));
+ camera.fov=THREE.MathUtils.lerp(
+   camera.fov,64+Math.min(Math.abs(speed)*.55,8),
+   1-Math.pow(.01,dt)
+ );
+ camera.updateProjectionMatrix();
+ camera.rotation.z=THREE.MathUtils.lerp(
+   camera.rotation.z,
+   THREE.MathUtils.clamp(-steer*.025*speed,-.12,.12),
+   1-Math.pow(.01,dt)
+ );
  drawMap();
 }
 let last=performance.now();
