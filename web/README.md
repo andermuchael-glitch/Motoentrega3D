@@ -1,16 +1,25 @@
-# Protótipo Web — Motoentrega 3D
+# Motoentrega3D
 
-Versão rápida para testar a jogabilidade antes da Unity.
+Protótipo de jogo 3D de moto-entregas para Android.
 
-## Controles
-- Celular: botões na tela
-- PC: WASD ou setas
+## MVP
+- Pilotagem de moto em terceira pessoa
+- Cidade/protótipo com pontos de coleta e entrega
+- Sistema de pedidos
+- Marcador de destino
+- Temporizador de entrega
+- Recompensa em dinheiro
+- HUD mobile
+- Estrutura preparada para Android
 
-## Fluxo
-1. Toque em PEGAR PEDIDO.
-2. Vá até o marcador laranja.
-3. O pedido será coletado automaticamente.
-4. Vá até o marcador azul.
-5. Receba R$ 18,00 e inicie outra entrega.
+## Engine
+Unity 6 + C#
 
-A versão usa Three.js via CDN e serve apenas como protótipo de gameplay. A versão final continuará planejada para Unity.
+## Estrutura
+- Assets/Scripts/Core
+- Assets/Scripts/Player
+- Assets/Scripts/Delivery
+- Assets/Scripts/UI
+- Assets/Scripts/World
+
+O projeto é organizado para começar com uma cena simples e evoluir para trânsito, combustível, garagem, upgrades, clima e mapa maior.
