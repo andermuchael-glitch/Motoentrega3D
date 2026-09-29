@@ -1,6 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import {LANDMARKS,buildLandmarks} from './landmarks.js?v=16';
-import {createTraffic} from './traffic.js?v=16';
+import {LANDMARKS,buildLandmarks} from './landmarks.js?v=17';
+import {createTraffic} from './traffic.js?v=17';
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x79b7e5);
@@ -256,6 +256,8 @@ pickup.visible=false;customer.visible=false;
 
 // MOTOCICLETA — modelo compacto esportivo, com piloto visível e baú separado
 const bike=new THREE.Group();
+// Todos os componentes da moto são filhos deste grupo para que posição e direção movam a moto inteira.
+const bikePartsStart=scene.children.length;
 const red=mat(0xd9252a,.30,.22), redDark=mat(0x8d1015,.45,.18);
 const dark=mat(0x14171b,.30,.35), rubber=mat(0x090b0e,.75,.20), chrome=mat(0xb9c5cf,.18,.85);
 const glass=mat(0x101820,.15,.65);
@@ -320,12 +322,15 @@ const deliveryBox=mesh(new THREE.BoxGeometry(.64,.42,.56),boxMat,0,1.45,.92);
 mesh(new THREE.BoxGeometry(.50,.07,.43),dark,0,1.69,.92);
 deliveryBox.visible=false;
 
+// Os helpers de malha adicionam os objetos diretamente à cena. Reparentamos somente as peças criadas acima para a moto.
+for(let i=scene.children.length-1;i>=bikePartsStart;i--) bike.add(scene.children[i]);
+
 bike.position.set(0,0,0);
 scene.add(bike);
 
 // Estado inicial explícito: evita o primeiro frame com câmera dentro da moto.
-camera.position.set(0,4.8,9.2);
-camera.lookAt(0,1,-4);
+camera.position.set(0,3.6,7.8);
+camera.lookAt(0,1.05,-3.2);
 
 let camRoll=0,route=null,lastNear=null,money=0,state='idle',remaining=180,orderReward=18,speed=0;
 const keys={left:false,right:false,up:false,down:false};
@@ -515,21 +520,23 @@ function drawMap(){
 }
 
 function update(dt){
- const throttle=(keys.up?1:0)-(keys.down?.72:0);
  if(keys.up){
-   speed+=6*dt;
+   speed+=5.2*dt;
  }else if(keys.down){
-   speed-=8*dt;
+   speed-=8.5*dt;
  }else{
-   speed*=Math.pow(.965,dt*60);
+   speed*=Math.pow(.94,dt*60);
  }
- speed=THREE.MathUtils.clamp(speed,-3,11);
+ speed=THREE.MathUtils.clamp(speed,-2.8,11);
 
  const steer=(keys.left?-1:0)+(keys.right?1:0);
- const steeringStrength=(1.7-Math.min(Math.abs(speed)*.07,.8))*Math.min(1,Math.abs(speed)/3);
- if(steer!==0){
+ const speedFactor=Math.min(1,Math.abs(speed)/4);
+ const steeringStrength=1.05*speedFactor;
+ if(steer!==0 && speedFactor>0.02){
    bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
  }
+ // Inclinação pequena da moto, sem inclinar o horizonte.
+ bike.rotation.z=THREE.MathUtils.lerp(bike.rotation.z,-steer*0.10*speedFactor,1-Math.pow(.02,dt));
  bike.translateZ(-speed*dt);
  traffic.update(dt);
  const crash=traffic.hit(bike.position);
@@ -556,14 +563,14 @@ function update(dt){
   const m=Math.floor(remaining/60),s=Math.floor(remaining%60);$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
  const yaw=bike.rotation.y;
- const followDistance=8.8;
+ const followDistance=7.8;
  const desired=bike.position.clone().add(
-   new THREE.Vector3(0,4.2,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+   new THREE.Vector3(0,3.35,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
  );
  camera.position.lerp(desired,1-Math.pow(.0008,dt));
 
  const lookTarget=bike.position.clone().add(
-   new THREE.Vector3(0,.6,-1.2).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+   new THREE.Vector3(0,.95,-2.4).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
  );
  camera.lookAt(lookTarget);
  camera.fov=THREE.MathUtils.lerp(
@@ -571,7 +578,7 @@ function update(dt){
    1-Math.pow(.01,dt)
  );
  camera.updateProjectionMatrix();
- camRoll=THREE.MathUtils.lerp(camRoll,THREE.MathUtils.clamp(-steer*.012*speed,-.05,.05),1-Math.pow(.01,dt));
+ camRoll=THREE.MathUtils.lerp(camRoll,THREE.MathUtils.clamp(-steer*.004*speed,-.025,.025),1-Math.pow(.01,dt));
  camera.rotateZ(camRoll);
  drawMap();
 }

@@ -1,11 +1,11 @@
-const CACHE_NAME = "motoentrega-3d-v16";
+const CACHE_NAME = "motoentrega-3d-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./style.css?v=16",
-  "./game.js?v=16",
-  "./landmarks.js?v=16",
-  "./traffic.js?v=16",
+  "./style.css?v=17",
+  "./game.js?v=17",
+  "./landmarks.js?v=17",
+  "./traffic.js?v=17",
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg"
