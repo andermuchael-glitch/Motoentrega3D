@@ -1,4 +1,6 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
+import {LANDMARKS,buildLandmarks} from './landmarks.js?v=16';
+import {createTraffic} from './traffic.js?v=16';
 
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x79b7e5);
@@ -237,6 +239,9 @@ store(60,60,11,9,5,0x43a86b,'Restaurante Praia');
 // marcos visuais
 box(105,4,0,1,8,250,0x3a87b0);
 
+buildLandmarks(THREE,scene,mat);
+const traffic=createTraffic(THREE,scene,mat);
+
 // markers
 function marker(pos,color){
  const g=new THREE.Group();
@@ -321,32 +326,27 @@ scene.add(bike);
 // Estado inicial explícito: evita o primeiro frame com câmera dentro da moto.
 camera.position.set(0,4.8,9.2);
 camera.lookAt(0,1,-4);
-document.querySelector('#controls [data-key="up"]')?.classList.remove('pressed');
 
-let money=0,state='idle',remaining=180,orderReward=18,speed=0;
+let camRoll=0,route=null,lastNear=null,money=0,state='idle',remaining=180,orderReward=18,speed=0;
 const keys={left:false,right:false,up:false,down:false};
-let cruise=false; // acelerador persistente para toque no celular
-
 const $=id=>document.getElementById(id);
 $('start').onclick=()=>{
  if(state==='idle'||state==='completed'||state==='failed'){
-  state='pickup';remaining=180;pickup.visible=true;customer.visible=false;deliveryBox.visible=true;
-  $('destination').textContent='Restaurante Central';$('status').textContent='Vá até o restaurante para pegar o pedido';$('start').style.display='none';
+  const a=LANDMARKS[Math.floor(Math.random()*LANDMARKS.length)];
+  let b;do{b=LANDMARKS[Math.floor(Math.random()*LANDMARKS.length)]}while(b===a);
+  pickup.position.set(a.sx,.1,a.sz);customer.position.set(b.sx,.1,b.sz);
+  const d=Math.hypot(a.sx-bike.position.x,a.sz-bike.position.z)+Math.hypot(b.sx-a.sx,b.sz-a.sz);
+  orderReward=Math.round(8+d*.09);remaining=Math.max(90,Math.round(d/9));
+  route={a,b};
+  state='pickup';pickup.visible=true;customer.visible=false;deliveryBox.visible=true;
+  $('destination').textContent=a.icon+' '+a.name;$('status').textContent='Pegue o pedido: '+a.name+' → '+b.name+' (R$ '+orderReward+',00)';$('start').style.display='none';
  }
 };
-// CONTROLES — arcade/mobile.
-// ▲ é um acelerador persistente: um toque inicia a moto, outro toque desacelera.
-// ◀/▶ ficam ativos enquanto pressionados. ▼ é freio/ré enquanto pressionado.
+// CONTROLES — toque/segure sem deixar o navegador transformar o gesto em câmera/scroll.
 const controlButtons=document.querySelectorAll('#controls button');
 function setControl(k,value){
-  if(k==='up' && value){
-    cruise=!cruise;
-    keys.up=cruise;
-    speed=Math.max(speed,cruise?6:0);
-    document.querySelector('#controls [data-key="up"]')?.classList.toggle('pressed',cruise);
-    return;
-  }
   if(k) keys[k]=value;
+  if(k==='down'&&value) speed=Math.min(speed,-4.0);
 }
 controlButtons.forEach(button=>{
  const k=button.dataset.key;
@@ -355,11 +355,11 @@ controlButtons.forEach(button=>{
    e.preventDefault();e.stopPropagation();
    try{button.setPointerCapture?.(e.pointerId)}catch(_){}
    setControl(k,true);
-   if(k!=='up') button.classList.add('pressed');
+   button.classList.add('pressed');
  };
  const release=e=>{
    e.preventDefault();e.stopPropagation();
-   if(k!=='up') setControl(k,false);
+   setControl(k,false);
    button.classList.remove('pressed');
  };
  button.addEventListener('pointerdown',press,{passive:false});
@@ -367,24 +367,27 @@ controlButtons.forEach(button=>{
  button.addEventListener('pointercancel',release,{passive:false});
  button.addEventListener('lostpointercapture',release,{passive:false});
 });
+addEventListener('pointerup',()=>{
+ keys.left=keys.right=keys.up=keys.down=false;
+ controlButtons.forEach(b=>b.classList.remove('pressed'));
+},{passive:true});
 addEventListener('keydown',e=>{
  const k=e.key.toLowerCase();
  if(e.key==='ArrowLeft'||k==='a'){e.preventDefault();keys.left=true}
  if(e.key==='ArrowRight'||k==='d'){e.preventDefault();keys.right=true}
- if(e.key==='ArrowUp'||k==='w'){
-   e.preventDefault();
-   if(!e.repeat) setControl('up',true);
- }
+ if(e.key==='ArrowUp'||k==='w'){e.preventDefault();keys.up=true}
  if(e.key==='ArrowDown'||k==='s'){e.preventDefault();keys.down=true}
 });
 addEventListener('keyup',e=>{
  const k=e.key.toLowerCase();
  if(e.key==='ArrowLeft'||k==='a')keys.left=false;
  if(e.key==='ArrowRight'||k==='d')keys.right=false;
+ if(e.key==='ArrowUp'||k==='w')keys.up=false;
  if(e.key==='ArrowDown'||k==='s')keys.down=false;
 });
 function dist(a,b){return Math.hypot(a.x-b.x,a.z-b.z)}
 
+document.getElementById('mapLabel').textContent='MAPA v16';
 const mapCanvas=document.getElementById('minimap');
 const mapCtx=mapCanvas.getContext('2d');
 
@@ -454,6 +457,14 @@ function drawMap(){
    mapCtx.fillText(name,p.x,p.y);
  }
 
+ // carros
+ mapCtx.fillStyle='#ffffffcc';
+ for(const k of traffic.cars){const p=worldToMap(k.g.position.x,k.g.position.z);mapCtx.fillRect(p.x-1,p.y-1,2,2)}
+
+ // pontos turísticos
+ mapCtx.font='11px Arial';mapCtx.textAlign='center';mapCtx.textBaseline='middle';
+ for(const l of LANDMARKS){const p=worldToMap(l.x,l.z);mapCtx.fillStyle='#0008';mapCtx.beginPath();mapCtx.arc(p.x,p.y,7,0,7);mapCtx.fill();mapCtx.fillText(l.icon,p.x,p.y+1)}
+
  // destino atual
  const target=state==='pickup'?pickup:customer;
  if(target && target.visible){
@@ -504,58 +515,64 @@ function drawMap(){
 }
 
 function update(dt){
- const accelerating=cruise && !keys.down;
- if(accelerating){
-   speed+=16*dt;
+ const throttle=(keys.up?1:0)-(keys.down?.72:0);
+ if(keys.up){
+   speed+=6*dt;
  }else if(keys.down){
-   speed-=11*dt;
+   speed-=8*dt;
  }else{
-   speed*=Math.pow(.94,dt*60);
+   speed*=Math.pow(.965,dt*60);
  }
- speed=THREE.MathUtils.clamp(speed,-7,16);
+ speed=THREE.MathUtils.clamp(speed,-3,11);
 
  const steer=(keys.left?-1:0)+(keys.right?1:0);
- const steeringStrength=1.8+Math.min(Math.abs(speed)*.055,1.1);
+ const steeringStrength=(1.7-Math.min(Math.abs(speed)*.07,.8))*Math.min(1,Math.abs(speed)/3);
  if(steer!==0){
    bike.rotation.y-=steer*steeringStrength*dt*Math.sign(speed||1);
  }
  bike.translateZ(-speed*dt);
-
- // Limites de segurança: se o jogador sair da área jogável, reposiciona
- // somente a posição, preservando a direção da moto.
- if(Math.abs(bike.position.x)>116 || Math.abs(bike.position.z)>116){
-   bike.position.x=THREE.MathUtils.clamp(bike.position.x,-112,112);
-   bike.position.z=THREE.MathUtils.clamp(bike.position.z,-112,112);
-   speed=0;
-   cruise=false;
-   keys.up=false;
-   document.querySelector('#controls [data-key="up"]')?.classList.remove('pressed');
+ traffic.update(dt);
+ const crash=traffic.hit(bike.position);
+ if(crash){
+  const fast=Math.abs(speed)>6;
+  speed=-speed*.35;bike.translateZ(speed>0?-1.2:1.2);
+  if(state==='pickup'||state==='delivery')remaining=Math.max(0,remaining-(fast?8:4));
+  $('message').textContent='🚗 Batida! -'+(fast?8:4)+'s';
+  setTimeout(()=>{if($('message').textContent.startsWith('🚗'))$('message').textContent=''},1800);
  }
+
  $('speed').textContent=Math.round(Math.abs(speed)*3.6);
+ const near=LANDMARKS.find(l=>Math.hypot(l.x-bike.position.x,l.z-bike.position.z)<16);
+ if(near&&near!==lastNear&&state!=='completed'&&state!=='failed'){$('message').textContent='📍 '+near.name;setTimeout(()=>{if($('message').textContent.startsWith('📍'))$('message').textContent=''},2200)}
+ lastNear=near||null;
  if(state!=='idle'&&state!=='completed'&&state!=='failed'){
   remaining-=dt;
   if(remaining<=0){remaining=0;state='failed';pickup.visible=false;customer.visible=false;deliveryBox.visible=false;$('status').textContent='Entrega perdida';$('message').textContent='⏰ Você perdeu o prazo!';$('start').textContent='📦 NOVO PEDIDO';$('start').style.display='block'}
   const target=state==='pickup'?pickup:customer;
   if(target.visible&&dist(bike.position,target.position)<4){
-   if(state==='pickup'){state='delivery';pickup.visible=false;customer.visible=true;$('destination').textContent='Cliente';$('status').textContent='Pedido coletado! Entregue ao cliente';$('message').textContent='📦 Pedido na mochila!'}
+   if(state==='pickup'){state='delivery';pickup.visible=false;customer.visible=true;$('destination').textContent=route.b.icon+' '+route.b.name;$('status').textContent='Pedido coletado! Entregue ao cliente';$('message').textContent='📦 Pedido na mochila!'}
    else{state='completed';customer.visible=false;deliveryBox.visible=false;money+=orderReward;$('money').textContent=money.toFixed(2).replace('.',',');$('status').textContent='Entrega concluída!';$('message').textContent='💰 + R$ '+orderReward+',00';$('start').textContent='📦 PRÓXIMO PEDIDO';$('start').style.display='block'}
   }
   const m=Math.floor(remaining/60),s=Math.floor(remaining%60);$('timer').textContent=String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');
  }
  const yaw=bike.rotation.y;
- // Câmera chase fixa em relação à moto. Sem ler/alterar o input da câmera.
- const camOffset=new THREE.Vector3(0,3.4,7.0)
-   .applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
- camera.position.copy(bike.position).add(camOffset);
+ const followDistance=8.8;
+ const desired=bike.position.clone().add(
+   new THREE.Vector3(0,4.2,followDistance).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+ );
+ camera.position.lerp(desired,1-Math.pow(.0008,dt));
 
  const lookTarget=bike.position.clone().add(
-   new THREE.Vector3(0,1.0,-1.8)
-     .applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
+   new THREE.Vector3(0,.6,-1.2).applyAxisAngle(new THREE.Vector3(0,1,0),yaw)
  );
  camera.lookAt(lookTarget);
- camera.fov=64+Math.min(Math.abs(speed)*.45,7);
+ camera.fov=THREE.MathUtils.lerp(
+   camera.fov,64+Math.min(Math.abs(speed)*.55,8),
+   1-Math.pow(.01,dt)
+ );
  camera.updateProjectionMatrix();
- camera.rotation.z=THREE.MathUtils.clamp(-steer*.018*speed,-.10,.10);
+ camRoll=THREE.MathUtils.lerp(camRoll,THREE.MathUtils.clamp(-steer*.012*speed,-.05,.05),1-Math.pow(.01,dt));
+ camera.rotateZ(camRoll);
  drawMap();
 }
 let last=performance.now();
